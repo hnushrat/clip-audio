@@ -36,6 +36,9 @@ def output_path():
         status_label.config(text="", fg="green")
 
 
+import os
+import soundfile as sf
+
 def say_hello():
     if not audio_file_path:
         status_label.config(text="Please select a file first!", fg="red")
@@ -55,43 +58,39 @@ def say_hello():
     progress_bar["value"] = 0
     root.update_idletasks()
 
-    with sf.SoundFile(audio_file_path, 'r') as f:
+    with sf.SoundFile(audio_file_path, mode='r') as f:
         sr = f.samplerate
+        channels = f.channels
         chunk_samples = int(duration * sr)
 
-        buffer = []
-        buffer_len = 0
+        total_chunks = (len(f) + chunk_samples - 1) // chunk_samples
+        progress_bar["maximum"] = total_chunks
+
         chunk_index = 1
 
         while True:
-            data = f.read(frames=chunk_samples, dtype="float32", always_2d=True)
+            try:
+                chunk = f.read(
+                    frames=chunk_samples,
+                    dtype="float32",
+                    always_2d=True
+                )
+            except sf.LibsndfileError:
+                break  # clean exit at EOF
 
-            if len(data) == 0:
+            if chunk.size == 0:
                 break
 
-            buffer.append(data)
-            buffer_len += len(data)
-
-            if buffer_len >= chunk_samples:
-                chunk = np.vstack(buffer)
-
-                output_file = os.path.join(
-                    output_dir, f"chunk_{chunk_index}.wav"
-                )
-
-                sf.write(output_file, chunk, sr)
-
-                buffer.clear()
-                buffer_len = 0
-                chunk_index += 1
-
-        # 🔴 append remaining audio to last chunk
-        if buffer:
-            chunk = np.vstack(buffer)
             output_file = os.path.join(
-                output_dir, f"chunk_{chunk_index}.wav"
+                output_dir, f"chunk_{chunk_index}.mp3"
             )
+
             sf.write(output_file, chunk, sr)
+
+            progress_bar["value"] = chunk_index
+            root.update_idletasks()
+
+            chunk_index += 1
 
     status_label.config(text="Generated!", fg="green")
 
