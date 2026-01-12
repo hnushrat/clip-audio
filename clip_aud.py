@@ -36,6 +36,9 @@ def output_path():
         status_label.config(text="", fg="green")
 
 
+import os
+import soundfile as sf
+
 def say_hello():
     if not audio_file_path:
         status_label.config(text="Please select a file first!", fg="red")
@@ -55,20 +58,39 @@ def say_hello():
     progress_bar["value"] = 0
     root.update_idletasks()
 
-    y, sr = librosa.load(audio_file_path)
-    chunk_samples = int(duration * sr)
+    with sf.SoundFile(audio_file_path, mode='r') as f:
+        sr = f.samplerate
+        channels = f.channels
+        chunk_samples = int(duration * sr)
 
-    chunks = [y[i:i + chunk_samples] for i in range(0, len(y), chunk_samples)]
-    total_chunks = len(chunks)
+        total_chunks = (len(f) + chunk_samples - 1) // chunk_samples
+        progress_bar["maximum"] = total_chunks
 
-    progress_bar["maximum"] = total_chunks
+        chunk_index = 1
 
-    for i, chunk in enumerate(chunks, start=1):
-        output_file = os.path.join(output_dir, f"chunk_{i}.wav")
-        sf.write(output_file, chunk, sr)
+        while True:
+            try:
+                chunk = f.read(
+                    frames=chunk_samples,
+                    dtype="float32",
+                    always_2d=True
+                )
+            except sf.LibsndfileError:
+                break  # clean exit at EOF
 
-        progress_bar["value"] = i
-        root.update_idletasks()
+            if chunk.size == 0:
+                break
+
+            output_file = os.path.join(
+                output_dir, f"chunk_{chunk_index}.wav"
+            )
+
+            sf.write(output_file, chunk, sr)
+
+            progress_bar["value"] = chunk_index
+            root.update_idletasks()
+
+            chunk_index += 1
 
     status_label.config(text="Generated!", fg="green")
 
