@@ -58,6 +58,8 @@ def say_hello():
     progress_bar["value"] = 0
     root.update_idletasks()
 
+    file_name = os.path.splitext(os.path.basename(audio_file_path))[0]
+    
     with sf.SoundFile(audio_file_path, mode='r') as f:
         sr = f.samplerate
         channels = f.channels
@@ -82,7 +84,7 @@ def say_hello():
                 break
 
             output_file = os.path.join(
-                output_dir, f"chunk_{chunk_index}.mp3"
+                output_dir, f"{file_name}_chunk_{chunk_index}.wav"
             )
 
             sf.write(output_file, chunk, sr)
